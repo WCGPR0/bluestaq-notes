@@ -5,10 +5,6 @@
 
 A Spring Boot REST API for taking notes and sharing them within teams. JWT bearer authentication, team-scoped authorization, CRUD-style resource endpoints (no action verbs), OpenAPI 3 docs, and JaCoCo coverage reporting.
 
-## Status
-
-Feature-complete for the initial spec: auth, users, teams, and notes are all implemented and tested (101 tests), including optimistic concurrency control on note edits.
-
 ## Tech stack
 
 - **Java 25**, **Spring Boot 4.1.1** (Spring Framework 7 / Spring Security 7)
@@ -111,10 +107,6 @@ mvn verify    # also runs the JaCoCo coverage gate
 ```
 
 JaCoCo HTML report: `target/site/jacoco/index.html` after `mvn test`.
-
-## CI
-
-GitHub Actions (`.github/workflows/ci.yml`) runs the full test suite via `mvn verify` on every push to any branch, uploads the JaCoCo HTML/XML/CSV report as a workflow artifact, and regenerates the coverage badge (`.github/badges/jacoco.svg`, referenced at the top of this README) — the badge is committed back to the same branch that triggered the run (skipped for bot commits via `[skip ci]`), so the badge URL stays live on `spring` and any other active branch.
 
 ## Project layout
 
