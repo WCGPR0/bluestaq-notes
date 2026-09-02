@@ -1,6 +1,7 @@
 package com.bluestaq.notesapi.note;
 
 import com.bluestaq.notesapi.auth.AuthenticatedUser;
+import com.bluestaq.notesapi.exception.PreconditionFailedException;
 import com.bluestaq.notesapi.exception.ResourceNotFoundException;
 import com.bluestaq.notesapi.note.dto.NoteCreateRequest;
 import com.bluestaq.notesapi.note.dto.NoteResponse;
@@ -8,6 +9,7 @@ import com.bluestaq.notesapi.note.dto.NoteUpdateRequest;
 import com.bluestaq.notesapi.team.Team;
 import com.bluestaq.notesapi.team.TeamAccessGuard;
 import com.bluestaq.notesapi.team.TeamRepository;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -55,9 +57,14 @@ public class NoteService {
         return noteRepository.findByTeamId(teamId).stream().map(NoteResponse::from).toList();
     }
 
-    public NoteResponse update(AuthenticatedUser requester, String noteId, NoteUpdateRequest request) {
+    public NoteResponse update(AuthenticatedUser requester, String noteId, NoteUpdateRequest request, long expectedVersion) {
         Note note = findNoteOrThrow(noteId);
         teamAccessGuard.assertMember(requester, note.getTeamId());
+
+        if (note.getVersion() != expectedVersion) {
+            throw new PreconditionFailedException(
+                    "Note has been modified since it was last fetched; refetch and retry with the current ETag");
+        }
 
         if (request.teamId() != null && !request.teamId().equals(note.getTeamId())) {
             Team destinationTeam = findTeamOrThrow(request.teamId());
@@ -76,7 +83,14 @@ public class NoteService {
         }
         note.setUpdatedAt(Instant.now());
 
-        return NoteResponse.from(noteRepository.save(note));
+        try {
+            return NoteResponse.from(noteRepository.save(note));
+        } catch (OptimisticLockingFailureException e) {
+            // Closes the actual race: two requests both passed the check above (both read the note
+            // before either wrote), but only one save can win against the live DB state.
+            throw new PreconditionFailedException(
+                    "Note was concurrently modified by another request; refetch and retry with the current ETag");
+        }
     }
 
     private Note findNoteOrThrow(String noteId) {

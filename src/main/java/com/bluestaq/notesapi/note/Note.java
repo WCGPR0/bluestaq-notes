@@ -1,6 +1,7 @@
 package com.bluestaq.notesapi.note;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -17,6 +18,8 @@ public class Note {
     private boolean archived;
     private Instant createdAt;
     private Instant updatedAt;
+    @Version
+    private Long version;
 
     public String getId() {
         return id;
@@ -80,5 +83,13 @@ public class Note {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 }

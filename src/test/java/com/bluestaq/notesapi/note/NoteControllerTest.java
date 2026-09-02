@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -39,8 +40,12 @@ class NoteControllerTest {
     private JwtService jwtService;
 
     private NoteResponse sampleResponse(String id) {
+        return sampleResponse(id, 1L);
+    }
+
+    private NoteResponse sampleResponse(String id, long version) {
         return new NoteResponse(id, "Title", "Body", "team-1", "user-1", false,
-                Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"));
+                Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"), version);
     }
 
     @Test
@@ -87,16 +92,61 @@ class NoteControllerTest {
     }
 
     @Test
+    void getById_returnsETagHeaderMatchingResponseVersion() throws Exception {
+        when(noteService.getById(any(), eq("note-1"))).thenReturn(sampleResponse("note-1"));
+
+        mockMvc.perform(get("/v1/notes/note-1"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("ETag", "\"1\""));
+    }
+
+    @Test
     void update_withValidRequest_returns200WithUpdatedBody() throws Exception {
-        when(noteService.update(any(), eq("note-1"), any())).thenReturn(sampleResponse("note-1"));
+        when(noteService.update(any(), eq("note-1"), any(), eq(1L))).thenReturn(sampleResponse("note-1"));
 
         mockMvc.perform(patch("/v1/notes/note-1")
+                        .header("If-Match", "\"1\"")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"title":"New Title"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("note-1"));
+    }
+
+    @Test
+    void update_withoutIfMatchHeader_returns428() throws Exception {
+        mockMvc.perform(patch("/v1/notes/note-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"New Title"}
+                                """))
+                .andExpect(status().is(428));
+    }
+
+    @Test
+    void update_withMalformedIfMatchHeader_returns400() throws Exception {
+        mockMvc.perform(patch("/v1/notes/note-1")
+                        .header("If-Match", "not-a-number")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"New Title"}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void update_withValidIfMatchHeader_returns200AndEchoesETagHeader() throws Exception {
+        when(noteService.update(any(), eq("note-1"), any(), eq(3L))).thenReturn(sampleResponse("note-1", 3L));
+
+        mockMvc.perform(patch("/v1/notes/note-1")
+                        .header("If-Match", "\"3\"")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"New Title"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(header().string("ETag", "\"3\""));
     }
 
     @Test

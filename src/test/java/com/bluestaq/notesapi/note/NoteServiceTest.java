@@ -2,6 +2,7 @@ package com.bluestaq.notesapi.note;
 
 import com.bluestaq.notesapi.auth.AuthenticatedUser;
 import com.bluestaq.notesapi.exception.ForbiddenOperationException;
+import com.bluestaq.notesapi.exception.PreconditionFailedException;
 import com.bluestaq.notesapi.exception.ResourceNotFoundException;
 import com.bluestaq.notesapi.note.dto.NoteCreateRequest;
 import com.bluestaq.notesapi.note.dto.NoteResponse;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.OptimisticLockingFailureException;
 
 import java.time.Instant;
 import java.util.List;
@@ -75,6 +77,7 @@ class NoteServiceTest {
         note.setArchived(archived);
         note.setCreatedAt(Instant.parse("2026-01-01T00:00:00Z"));
         note.setUpdatedAt(Instant.parse("2026-01-01T00:00:00Z"));
+        note.setVersion(1L);
         return note;
     }
 
@@ -216,8 +219,10 @@ class NoteServiceTest {
         AuthenticatedUser requester = asRequester("user-1");
         when(noteRepository.findById("missing")).thenReturn(Optional.empty());
 
+        // expectedVersion is deliberately mismatched (note doesn't even exist) to confirm the
+        // not-found check happens before any version comparison could occur.
         assertThrows(ResourceNotFoundException.class,
-                () -> noteService.update(requester, "missing", new NoteUpdateRequest("New Title", null, null, null)));
+                () -> noteService.update(requester, "missing", new NoteUpdateRequest("New Title", null, null, null), 999L));
 
         verify(teamAccessGuard, never()).assertMember(any(), any());
         verify(noteRepository, never()).save(any());
@@ -231,8 +236,10 @@ class NoteServiceTest {
         doThrow(new ForbiddenOperationException("not a member"))
                 .when(teamAccessGuard).assertMember(requester, "team-1");
 
+        // expectedVersion is deliberately mismatched to confirm the guard check happens before the
+        // version check, i.e. a non-member gets 403 rather than 412 even with a stale version.
         assertThrows(ForbiddenOperationException.class,
-                () -> noteService.update(requester, "note-1", new NoteUpdateRequest("New Title", null, null, null)));
+                () -> noteService.update(requester, "note-1", new NoteUpdateRequest("New Title", null, null, null), 999L));
 
         verify(noteRepository, never()).save(any());
     }
@@ -247,7 +254,7 @@ class NoteServiceTest {
         doNothing().when(teamAccessGuard).assertMember(requester, "team-1");
         when(noteRepository.save(any(Note.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        NoteResponse response = noteService.update(requester, "note-1", new NoteUpdateRequest("New Title", null, null, null));
+        NoteResponse response = noteService.update(requester, "note-1", new NoteUpdateRequest("New Title", null, null, null), 1L);
 
         assertEquals("New Title", response.title());
         assertEquals("Body", response.body());
@@ -262,7 +269,7 @@ class NoteServiceTest {
         doNothing().when(teamAccessGuard).assertMember(requester, "team-1");
         when(noteRepository.save(any(Note.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        NoteResponse response = noteService.update(requester, "note-1", new NoteUpdateRequest(null, null, true, null));
+        NoteResponse response = noteService.update(requester, "note-1", new NoteUpdateRequest(null, null, true, null), 1L);
 
         assertTrue(response.archived());
     }
@@ -275,7 +282,7 @@ class NoteServiceTest {
         doNothing().when(teamAccessGuard).assertMember(requester, "team-1");
         when(noteRepository.save(any(Note.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        NoteResponse response = noteService.update(requester, "note-1", new NoteUpdateRequest(null, null, false, null));
+        NoteResponse response = noteService.update(requester, "note-1", new NoteUpdateRequest(null, null, false, null), 1L);
 
         assertFalse(response.archived());
     }
@@ -289,7 +296,7 @@ class NoteServiceTest {
         doNothing().when(teamAccessGuard).assertMember(requester, "team-1");
         when(noteRepository.save(any(Note.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        NoteResponse response = noteService.update(requester, "note-1", new NoteUpdateRequest("New Title", null, null, null));
+        NoteResponse response = noteService.update(requester, "note-1", new NoteUpdateRequest("New Title", null, null, null), 1L);
 
         assertEquals(originalCreatedAt, response.createdAt());
         assertNotNull(response.updatedAt());
@@ -306,7 +313,7 @@ class NoteServiceTest {
         when(teamRepository.findById("team-missing")).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class,
-                () -> noteService.update(requester, "note-1", new NoteUpdateRequest(null, null, null, "team-missing")));
+                () -> noteService.update(requester, "note-1", new NoteUpdateRequest(null, null, null, "team-missing"), 1L));
 
         verify(noteRepository, never()).save(any());
     }
@@ -321,7 +328,7 @@ class NoteServiceTest {
         when(teamRepository.findById("team-2")).thenReturn(Optional.of(existingTeam("team-2")));
         when(noteRepository.save(any(Note.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        NoteResponse response = noteService.update(requester, "note-1", new NoteUpdateRequest(null, null, null, "team-2"));
+        NoteResponse response = noteService.update(requester, "note-1", new NoteUpdateRequest(null, null, null, "team-2"), 1L);
 
         assertEquals("team-2", response.teamId());
         verify(teamAccessGuard).assertMember(requester, "team-1");
@@ -339,7 +346,7 @@ class NoteServiceTest {
         when(teamRepository.findById("team-2")).thenReturn(Optional.of(existingTeam("team-2")));
 
         assertThrows(ForbiddenOperationException.class,
-                () -> noteService.update(requester, "note-1", new NoteUpdateRequest(null, null, null, "team-2")));
+                () -> noteService.update(requester, "note-1", new NoteUpdateRequest(null, null, null, "team-2"), 1L));
 
         verify(noteRepository, never()).save(any());
     }
@@ -352,10 +359,38 @@ class NoteServiceTest {
         doNothing().when(teamAccessGuard).assertMember(requester, "team-1");
         when(noteRepository.save(any(Note.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        NoteResponse response = noteService.update(requester, "note-1", new NoteUpdateRequest(null, null, null, "team-1"));
+        NoteResponse response = noteService.update(requester, "note-1", new NoteUpdateRequest(null, null, null, "team-1"), 1L);
 
         assertEquals("team-1", response.teamId());
         verify(teamAccessGuard).assertMember(requester, "team-1");
         verify(teamRepository, never()).findById(any());
+    }
+
+    // ---- update: optimistic concurrency control ----
+
+    @Test
+    void update_whenExpectedVersionDoesNotMatchCurrentVersion_throwsPreconditionFailedExceptionAndDoesNotSave() {
+        AuthenticatedUser requester = asRequester("user-1");
+        Note note = existingNote("note-1", "team-1", "user-2", false);
+        when(noteRepository.findById("note-1")).thenReturn(Optional.of(note));
+        doNothing().when(teamAccessGuard).assertMember(requester, "team-1");
+
+        assertThrows(PreconditionFailedException.class,
+                () -> noteService.update(requester, "note-1", new NoteUpdateRequest("New Title", null, null, null), 2L));
+
+        verify(noteRepository, never()).save(any());
+    }
+
+    @Test
+    void update_whenRepositoryThrowsOptimisticLockingFailureOnSave_translatesToPreconditionFailedException() {
+        AuthenticatedUser requester = asRequester("user-1");
+        Note note = existingNote("note-1", "team-1", "user-2", false);
+        when(noteRepository.findById("note-1")).thenReturn(Optional.of(note));
+        doNothing().when(teamAccessGuard).assertMember(requester, "team-1");
+        when(noteRepository.save(any(Note.class)))
+                .thenThrow(new OptimisticLockingFailureException("concurrent modification"));
+
+        assertThrows(PreconditionFailedException.class,
+                () -> noteService.update(requester, "note-1", new NoteUpdateRequest("New Title", null, null, null), 1L));
     }
 }

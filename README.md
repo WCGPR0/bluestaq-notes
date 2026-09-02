@@ -4,7 +4,7 @@ A Spring Boot REST API for taking notes and sharing them within teams. JWT beare
 
 ## Status
 
-Under active build. Current state: project scaffolding (Maven build, package layout, exception handling) is in place. Auth, User, Team, and Note domains are being built next, slice by slice, test-first.
+Feature-complete for the initial spec: auth, users, teams, and notes are all implemented and tested (101 tests), including optimistic concurrency control on note edits.
 
 ## Tech stack
 
@@ -60,7 +60,17 @@ Team- and note-scoped endpoints additionally check that the caller is a member o
 | GET | `/v1/teams/{teamId}/notes` | member or ADMIN | list team's notes |
 | POST | `/v1/notes` | authenticated + member of body's `teamId` | create |
 | GET | `/v1/notes/{noteId}` | member of note's `teamId` or ADMIN | |
-| PATCH | `/v1/notes/{noteId}` | member of note's current `teamId` or ADMIN | title/body/archived/teamId (moving requires membership in both source and destination team) |
+| PATCH | `/v1/notes/{noteId}` | member of note's current `teamId` or ADMIN | title/body/archived/teamId (moving requires membership in both source and destination team); requires `If-Match` |
+
+## Optimistic concurrency on notes
+
+`GET`/`POST`/`PATCH` on `/v1/notes/{noteId}` return an `ETag` response header holding the note's current version (backed by a `@Version` field on the Mongo document). `PATCH /v1/notes/{noteId}` requires an `If-Match: "<version>"` request header:
+
+- Missing `If-Match` → `428 Precondition Required`
+- `If-Match` doesn't match the note's current version → `412 Precondition Failed` (checked both explicitly before applying changes, and again atomically at the database write via Spring Data's optimistic locking, which is what actually closes the race between two simultaneous PATCH requests)
+- Matching version → the update applies and the response carries the new, incremented `ETag`
+
+This prevents the classic lost-update problem: two clients editing the same note concurrently can no longer silently overwrite each other — the second writer gets a `412` and must refetch.
 
 ## Running locally
 

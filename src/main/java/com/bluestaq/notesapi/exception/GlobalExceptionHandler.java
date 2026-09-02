@@ -34,4 +34,14 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleBadRequest(IllegalArgumentException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
+
+    @ExceptionHandler(PreconditionFailedException.class)
+    public ProblemDetail handlePreconditionFailed(PreconditionFailedException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.PRECONDITION_FAILED, ex.getMessage());
+    }
+
+    @ExceptionHandler(PreconditionRequiredException.class)
+    public ProblemDetail handlePreconditionRequired(PreconditionRequiredException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.PRECONDITION_REQUIRED, ex.getMessage());
+    }
 }

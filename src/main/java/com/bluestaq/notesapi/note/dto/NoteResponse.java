@@ -12,10 +12,11 @@ public record NoteResponse(
         String authorId,
         boolean archived,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt,
+        Long version) {
 
     public static NoteResponse from(Note note) {
         return new NoteResponse(note.getId(), note.getTitle(), note.getBody(), note.getTeamId(),
-                note.getAuthorId(), note.isArchived(), note.getCreatedAt(), note.getUpdatedAt());
+                note.getAuthorId(), note.isArchived(), note.getCreatedAt(), note.getUpdatedAt(), note.getVersion());
     }
 }

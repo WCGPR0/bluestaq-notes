@@ -135,17 +135,19 @@ class NotesApiIntegrationTest {
         assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
         String noteId = createResponse.getBody().id();
         assertFalse(createResponse.getBody().archived());
+        String eTagAfterCreate = createResponse.getHeaders().getETag();
 
-        ResponseEntity<NoteResponse> archiveResponse = patchWithAuth(
-                "/v1/notes/" + noteId, user.token(), new NoteUpdateRequest(null, null, true, null), NoteResponse.class);
+        ResponseEntity<NoteResponse> archiveResponse = patchWithAuth("/v1/notes/" + noteId, user.token(),
+                eTagAfterCreate, new NoteUpdateRequest(null, null, true, null), NoteResponse.class);
         assertEquals(HttpStatus.OK, archiveResponse.getStatusCode());
         assertTrue(archiveResponse.getBody().archived());
+        String eTagAfterArchive = archiveResponse.getHeaders().getETag();
 
         ResponseEntity<NoteResponse> fetchAfterArchive = getWithAuth("/v1/notes/" + noteId, user.token(), NoteResponse.class);
         assertTrue(fetchAfterArchive.getBody().archived());
 
-        ResponseEntity<NoteResponse> moveResponse = patchWithAuth(
-                "/v1/notes/" + noteId, user.token(), new NoteUpdateRequest(null, null, null, teamBId), NoteResponse.class);
+        ResponseEntity<NoteResponse> moveResponse = patchWithAuth("/v1/notes/" + noteId, user.token(),
+                eTagAfterArchive, new NoteUpdateRequest(null, null, null, teamBId), NoteResponse.class);
         assertEquals(HttpStatus.OK, moveResponse.getStatusCode());
         assertEquals(teamBId, moveResponse.getBody().teamId());
 
@@ -156,6 +158,35 @@ class NotesApiIntegrationTest {
 
         assertTrue(List.of(teamANotes.getBody()).stream().noneMatch(n -> n.id().equals(noteId)));
         assertTrue(List.of(teamBNotes.getBody()).stream().anyMatch(n -> n.id().equals(noteId)));
+    }
+
+    @Test
+    void note_updateWithStaleIfMatch_returns412_thenSucceedsWithCurrentIfMatchAndIncrementsETag() {
+        RegisteredUser user = registerAndLogin("etag-user");
+        String teamId = createTeam(user.token(), "Team ETag").id();
+
+        ResponseEntity<NoteResponse> createResponse = postWithAuth(
+                "/v1/notes", user.token(), new NoteCreateRequest(teamId, "Title", "Body"), NoteResponse.class);
+        assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
+        String noteId = createResponse.getBody().id();
+
+        ResponseEntity<NoteResponse> getResponse = getWithAuth("/v1/notes/" + noteId, user.token(), NoteResponse.class);
+        assertEquals(HttpStatus.OK, getResponse.getStatusCode());
+        String currentETag = getResponse.getHeaders().getETag();
+        assertTrue(currentETag != null && !currentETag.isBlank());
+
+        ResponseEntity<String> staleUpdateResponse = patchWithAuth("/v1/notes/" + noteId, user.token(),
+                "\"999\"", new NoteUpdateRequest("Stale Title", null, null, null), String.class);
+        assertEquals(HttpStatus.PRECONDITION_FAILED, staleUpdateResponse.getStatusCode());
+
+        ResponseEntity<NoteResponse> updateResponse = patchWithAuth("/v1/notes/" + noteId, user.token(),
+                currentETag, new NoteUpdateRequest("Updated Title", null, null, null), NoteResponse.class);
+        assertEquals(HttpStatus.OK, updateResponse.getStatusCode());
+        assertEquals("Updated Title", updateResponse.getBody().title());
+
+        String newETag = updateResponse.getHeaders().getETag();
+        assertTrue(newETag != null && !newETag.isBlank());
+        assertFalse(newETag.equals(currentETag));
     }
 
     @Test
@@ -201,8 +232,10 @@ class NotesApiIntegrationTest {
         return restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(body, authHeaders(token)), responseType);
     }
 
-    private <T> ResponseEntity<T> patchWithAuth(String url, String token, Object body, Class<T> responseType) {
-        return restTemplate.exchange(url, HttpMethod.PATCH, new HttpEntity<>(body, authHeaders(token)), responseType);
+    private <T> ResponseEntity<T> patchWithAuth(String url, String token, String ifMatch, Object body, Class<T> responseType) {
+        HttpHeaders headers = authHeaders(token);
+        headers.set(HttpHeaders.IF_MATCH, ifMatch);
+        return restTemplate.exchange(url, HttpMethod.PATCH, new HttpEntity<>(body, headers), responseType);
     }
 
     private HttpHeaders authHeaders(String token) {
