@@ -116,7 +116,7 @@ JaCoCo HTML report: `target/site/jacoco/index.html` after `mvn test`.
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) runs the full test suite via `mvn verify` on every push to any branch, uploads the JaCoCo HTML/XML/CSV report as a workflow artifact, and regenerates the coverage badge (`.github/badges/jacoco.svg`, referenced at the top of this README) — the badge is committed back to the repo only on pushes to `main`, so feature branches just run tests without writing back to the repo.
+GitHub Actions (`.github/workflows/ci.yml`) runs the full test suite via `mvn verify` on every push to any branch, uploads the JaCoCo HTML/XML/CSV report as a workflow artifact, and regenerates the coverage badge (`.github/badges/jacoco.svg`, referenced at the top of this README) — the badge is committed back to the same branch that triggered the run (skipped for bot commits via `[skip ci]`), so the badge URL stays live on `spring` and any other active branch.
 
 ## Project layout
 
