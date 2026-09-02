@@ -21,8 +21,8 @@
     <java.version>25</java.version>
     <springdoc.version>3.1.0</springdoc.version>
     <jjwt.version>0.13.0</jjwt.version>
-    <flapdoodle.version>4.24.0</flapdoodle.version>
-    <jacoco.version>0.8.13</jacoco.version>
+    <flapdoodle.version>4.33.0</flapdoodle.version>
+    <jacoco.version>0.8.15</jacoco.version>
   </properties>
 
   <dependencies>
@@ -79,11 +79,25 @@
       <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Spring Boot 4 splits test-slice support (e.g. @WebMvcTest) out of spring-boot-test-autoconfigure
+         into per-feature starters; spring-boot-starter-test alone no longer pulls this in. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- Embedded MongoDB for tests: no local/real Mongo server required. -->
     <dependency>
       <groupId>de.flapdoodle.embed</groupId>
       <artifactId>de.flapdoodle.embed.mongo.spring4x</artifactId>
       <version>${flapdoodle.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- Spring Boot 4 splits RestTemplateBuilder out of spring-boot-starter-web into this module;
+         TestRestTemplateTestAutoConfiguration (spring-boot-resttestclient) needs it on the classpath. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-restclient</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
