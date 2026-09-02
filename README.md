@@ -74,18 +74,21 @@ This prevents the classic lost-update problem: two clients editing the same note
 
 ## Running locally
 
-Requires a real MongoDB instance (embedded Mongo is test-only) and a JWT signing secret — both fail fast at startup if unset:
+Requires a real MongoDB instance (embedded Mongo is test-only) and a JWT signing secret — both fail fast at startup if unset. Env vars are managed via [direnv](https://direnv.net/) and a `.envrc` file (gitignored — never commit real secrets):
 
 ```bash
-export MONGODB_URI="mongodb://localhost:27017/notes"
-export JWT_SECRET="replace-with-a-long-random-secret"
+cp .envrc.sample .envrc
+# edit .envrc: set JWT_SECRET to a real random secret, and MONGODB_URI if not using local Mongo on the default port
+direnv allow
 mvn spring-boot:run
 ```
+
+No direnv? `source .envrc` in your shell before running works the same.
 
 Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 OpenAPI spec: `http://localhost:8080/v3/api-docs`
 
-Optional env vars: `PORT` (default `8080`), `JWT_EXPIRATION_SECONDS` (default `3600`).
+Optional env vars (see `.envrc.sample`): `PORT` (default `8080`), `JWT_EXPIRATION_SECONDS` (default `3600`).
 
 ## Testing & coverage
 

@@ -1,0 +1,6 @@
+export MONGODB_URI="mongodb://localhost:27017/notes"
+export JWT_SECRET="replace-with-a-long-random-secret"
+
+# Optional (defaults shown)
+# export PORT=8080
+# export JWT_EXPIRATION_SECONDS=3600
