@@ -1,9 +1,12 @@
 spring:
   application:
     name: notes-api
-  data:
-    mongodb:
-      uri: ${MONGODB_URI}
+  # NOTE: Spring Boot 4 split Mongo support into spring-boot-mongodb (canonical
+  # prefix spring.mongodb.*) and spring-boot-data-mongodb. The old
+  # spring.data.mongodb.uri is silently ignored, leaving the driver on its
+  # localhost:27017 default.
+  mongodb:
+    uri: ${MONGODB_URI}
 
 app:
   jwt:
