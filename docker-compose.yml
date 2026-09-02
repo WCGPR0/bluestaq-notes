@@ -1,0 +1,44 @@
+# Docker Compose v5.5.0+ (Compose Specification v5 — no top-level `version:` key needed).
+#
+# Usage:
+#   docker compose up mongodb        # just the database
+#   docker compose up                # database + app instance (app waits for mongodb to be healthy)
+#   docker compose run --rm test     # run the test suite in a container (unaffected by `up` — uses
+#                                     # its own embedded MongoDB, never touches the mongodb service)
+
+services:
+  mongodb:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/notes
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me-0123456789}
+      JWT_EXPIRATION_SECONDS: ${JWT_EXPIRATION_SECONDS:-3600}
+      PORT: 8080
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  test:
+    build:
+      context: .
+      target: build
+    profiles: ["test"]
+    working_dir: /workspace
+    entrypoint: ["mvn", "-B", "test"]
+
+volumes:
+  mongodb-data:

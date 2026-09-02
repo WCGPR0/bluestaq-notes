@@ -1,5 +1,8 @@
 # bluestaq-notes
 
+[![CI](https://github.com/WCGPR0/bluestaq-notes/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+![Coverage](.github/badges/jacoco.svg)
+
 A Spring Boot REST API for taking notes and sharing them within teams. JWT bearer authentication, team-scoped authorization, CRUD-style resource endpoints (no action verbs), OpenAPI 3 docs, and JaCoCo coverage reporting.
 
 ## Status
@@ -90,6 +93,18 @@ OpenAPI spec: `http://localhost:8080/v3/api-docs`
 
 Optional env vars (see `.envrc.sample`): `PORT` (default `8080`), `JWT_EXPIRATION_SECONDS` (default `3600`).
 
+### With Docker Compose
+
+No local Java/Maven/Mongo install needed — everything runs in containers (Docker Compose v5.5.0+):
+
+```bash
+docker compose up mongodb        # just the database, e.g. if you're running the app via `mvn spring-boot:run`
+docker compose up                # database + app instance (app waits for mongodb to be healthy)
+docker compose run --rm test     # run the full test suite in a container
+```
+
+`docker compose up` uses a dev-only default `JWT_SECRET` if one isn't set in your environment — fine for local use, don't rely on it anywhere real. `docker compose run --rm test` doesn't touch the `mongodb` service at all — the test suite always uses its own embedded MongoDB, in a container the same as it does locally.
+
 ## Testing & coverage
 
 ```bash
@@ -98,6 +113,10 @@ mvn verify    # also runs the JaCoCo coverage gate
 ```
 
 JaCoCo HTML report: `target/site/jacoco/index.html` after `mvn test`.
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs the full test suite via `mvn verify` on every push to any branch, uploads the JaCoCo HTML/XML/CSV report as a workflow artifact, and regenerates the coverage badge (`.github/badges/jacoco.svg`, referenced at the top of this README) — the badge is committed back to the repo only on pushes to `main`, so feature branches just run tests without writing back to the repo.
 
 ## Project layout
 

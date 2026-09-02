@@ -1,0 +1,10 @@
+target/
+.git/
+.github/
+.claude/
+.idea/
+*.iml
+.envrc
+.envrc.sample
+.DS_Store
+README.md
