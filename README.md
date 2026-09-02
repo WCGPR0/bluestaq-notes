@@ -69,6 +69,32 @@ Team- and note-scoped endpoints check that the caller is a member of the relevan
 
 This prevents the classic lost-update problem: two clients editing the same note concurrently can no longer silently overwrite each other — the second writer gets a `412` and must refetch.
 
+## Design decisions
+
+**1. Boring CRUD, shaped by HTTP — not by the framework.** I wanted a KISS, SOLID API with nothing fancy: resource nouns, no action verbs, and stock HTTP semantics doing the heavy lifting. `POST` returns `201`, `DELETE` returns `204`, and concurrent edits are handled with `ETag`/`If-Match` (`428`/`412`) backed by a `@Version` field rather than a custom `version` body field or a lock endpoint. Versioning lives in headers where HTTP says it should, so any HTTP-literate client already knows how to behave.
+
+**2. Out-of-the-box Spring Boot, latest stable everything.** Spring Boot is the modern default for Java services, and I leaned on that deliberately: constructor-injected components, auto-configuration, and the IoC container instead of hand-wired factories. I stayed on the newest stable releases (Java 25, Boot 4.1.1) so the project reflects current idioms rather than last year's workarounds. 
+
+**3. Schemaless DB over a relational DB.** The requirements were vague and open to interpretation, so I optimized for easy refactoring: no migrations, no schema-alter dance. Team membership lives as a `teamIds` set on `User` (not an ever-growing array on `Team`), and changing the shape of a document is a one-line edit. Embedded Mongo via `flapdoodle` keeps `mvn test` hermetic — no local database needed.
+
+**4. Followed TDD best practices.** - Used JUnit 5 + Mockito — golden standard, lightweight, out-of-the-box, no exotic harness. Red-green against the endpoint contract first and let the JaCoCo minimum-coverage gate enforce that new code arrives with tests rather than hoping it does.
+
+**5. Stateless Simple JWT auth** A bare minimum auth token that is deliberately dumb — identity plus scopes, nothing authorizing on its own:
+
+```json
+{
+  "sub": "<user id>",
+  "aud": "notes-api",
+  "scope": "profile:read profile:write teams:read teams:write notes:read notes:write",
+  "exp": 1788361200
+}
+```
+### If I had more time
+
+- **Add:** team invites (membership is currently only editable directly in MongoDB — the honest gap in this design); pagination on list endpoints; refresh-token rotation instead of a single long-lived bearer; rate limiting on `/v1/auth/login`, more environment managers (like jEnv) as alternatives to Docker
+- **Change:** hand-rolled JWT (`JwtService`) → a cloud identity provider or SSO (OIDC); and if this is more live-note taking like Google Docs, I would want to replace REST APIs with WebSockets
+- **Stop:** chasing latest-and-greatest for its own sake — updating things to the latest and greatest saves lots of future code debt down the road, but sometimes there are incompatibility with package dependencies or issues with nightly versions than GA.
+
 ## Running locally
 
 Requires a real MongoDB instance (embedded Mongo is test-only) and a JWT signing secret — both fail fast at startup if unset. Env vars are managed via [direnv](https://direnv.net/) and a `.envrc` file (gitignored — never commit real secrets):
