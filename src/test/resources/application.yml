@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: notes-api-test
+
+app:
+  jwt:
+    secret: test-only-secret-do-not-use-in-production-0123456789abcdef
+    expiration-seconds: 3600

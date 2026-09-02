@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: notes-api
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
+
+server:
+  port: ${PORT:8080}
