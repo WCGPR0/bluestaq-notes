@@ -82,8 +82,10 @@ mvn spring-boot:run
 
 No direnv? `source .envrc` in your shell before running works the same.
 
-Swagger UI: `http://localhost:8080/swagger-ui/index.html`
-OpenAPI spec: `http://localhost:8080/v3/api-docs`
+### Swagger UI / OpenAPI
+
+- Swagger UI: `http://localhost:8080/swagger-ui/index.html` (no login needed to browse)
+- OpenAPI spec: `http://localhost:8080/v3/api-docs` (append `.yaml` for YAML)
 
 Optional env vars (see `.envrc.sample`): `PORT` (default `8080`), `JWT_EXPIRATION_SECONDS` (default `3600`).
 
@@ -107,6 +109,12 @@ mvn verify    # also runs the JaCoCo coverage gate
 ```
 
 JaCoCo HTML report: `target/site/jacoco/index.html` after `mvn test`.
+
+## Tested on
+
+- ✅ macOS 26.2 (Tahoe), Apple M3 Pro (arm64) — Java 25.0.2, Maven 3.9.12, Docker 29.7.2
+- ⬜ Windows
+- ⬜ Linux
 
 ## Project layout
 
