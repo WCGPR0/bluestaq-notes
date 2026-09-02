@@ -2,7 +2,6 @@ package com.bluestaq.notesapi.team;
 
 import com.bluestaq.notesapi.auth.AuthenticatedUser;
 import com.bluestaq.notesapi.exception.ForbiddenOperationException;
-import com.bluestaq.notesapi.user.Role;
 import com.bluestaq.notesapi.user.User;
 import com.bluestaq.notesapi.user.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -15,8 +14,6 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,8 +26,8 @@ class TeamAccessGuardTest {
 
     private TeamAccessGuard teamAccessGuard;
 
-    private AuthenticatedUser asRequester(String userId, boolean admin) {
-        return new AuthenticatedUser(userId, admin ? Set.of(Role.ADMIN) : Set.of(Role.USER), Set.of());
+    private AuthenticatedUser asRequester(String userId) {
+        return new AuthenticatedUser(userId, Set.of());
     }
 
     private User userWithTeams(String id, Set<String> teamIds) {
@@ -41,20 +38,11 @@ class TeamAccessGuardTest {
     }
 
     @Test
-    void assertMember_whenRequesterIsAdmin_doesNotThrowAndSkipsRepositoryLookup() {
-        teamAccessGuard = new TeamAccessGuard(userRepository);
-
-        assertDoesNotThrow(() -> teamAccessGuard.assertMember(asRequester("admin-1", true), "team-1"));
-
-        verify(userRepository, never()).findById(anyString());
-    }
-
-    @Test
     void assertMember_whenRequesterIsMemberOfTeam_doesNotThrow() {
         teamAccessGuard = new TeamAccessGuard(userRepository);
         when(userRepository.findById("user-1")).thenReturn(Optional.of(userWithTeams("user-1", Set.of("team-1"))));
 
-        assertDoesNotThrow(() -> teamAccessGuard.assertMember(asRequester("user-1", false), "team-1"));
+        assertDoesNotThrow(() -> teamAccessGuard.assertMember(asRequester("user-1"), "team-1"));
     }
 
     @Test
@@ -63,13 +51,13 @@ class TeamAccessGuardTest {
         when(userRepository.findById("user-1")).thenReturn(Optional.of(userWithTeams("user-1", Set.of("team-2"))));
 
         assertThrows(ForbiddenOperationException.class,
-                () -> teamAccessGuard.assertMember(asRequester("user-1", false), "team-1"));
+                () -> teamAccessGuard.assertMember(asRequester("user-1"), "team-1"));
     }
 
     @Test
     void assertMember_reFetchesMembershipOnEveryCall_ratherThanCachingStaleState() {
         teamAccessGuard = new TeamAccessGuard(userRepository);
-        AuthenticatedUser requester = asRequester("user-1", false);
+        AuthenticatedUser requester = asRequester("user-1");
         when(userRepository.findById("user-1"))
                 .thenReturn(Optional.of(userWithTeams("user-1", Set.of("team-1"))))
                 .thenReturn(Optional.of(userWithTeams("user-1", Set.of())));

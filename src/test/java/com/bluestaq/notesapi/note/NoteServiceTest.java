@@ -10,7 +10,6 @@ import com.bluestaq.notesapi.note.dto.NoteUpdateRequest;
 import com.bluestaq.notesapi.team.Team;
 import com.bluestaq.notesapi.team.TeamAccessGuard;
 import com.bluestaq.notesapi.team.TeamRepository;
-import com.bluestaq.notesapi.user.Role;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,7 +56,7 @@ class NoteServiceTest {
     }
 
     private AuthenticatedUser asRequester(String userId) {
-        return new AuthenticatedUser(userId, Set.of(Role.USER), Set.of());
+        return new AuthenticatedUser(userId, Set.of());
     }
 
     private Team existingTeam(String id) {

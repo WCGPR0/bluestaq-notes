@@ -20,8 +20,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/v1/users")
 public class UserController {
@@ -35,13 +33,6 @@ public class UserController {
     @PostMapping
     public ResponseEntity<UserResponse> register(@Valid @RequestBody UserRegistrationRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.register(request));
-    }
-
-    @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @SecurityRequirement(name = "bearerAuth")
-    public List<UserResponse> listAll() {
-        return userService.listAll();
     }
 
     @GetMapping("/{id}")

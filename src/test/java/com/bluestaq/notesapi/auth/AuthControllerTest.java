@@ -1,6 +1,5 @@
 package com.bluestaq.notesapi.auth;
 
-import com.bluestaq.notesapi.user.Role;
 import com.bluestaq.notesapi.user.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -14,8 +13,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -41,7 +38,6 @@ class AuthControllerTest {
         User domainUser = new User();
         domainUser.setId("user-123");
         domainUser.setEmail("user@example.com");
-        domainUser.setRoles(Set.of(Role.USER));
 
         Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(new UserPrincipal(domainUser));

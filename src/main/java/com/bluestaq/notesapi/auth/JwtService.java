@@ -1,6 +1,5 @@
 package com.bluestaq.notesapi.auth;
 
-import com.bluestaq.notesapi.user.Role;
 import com.bluestaq.notesapi.user.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -11,9 +10,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class JwtService {
@@ -31,13 +28,11 @@ public class JwtService {
     public String generateToken(User user) {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(properties.expirationSeconds());
-        List<String> roleNames = user.getRoles().stream().map(Role::name).toList();
 
         return Jwts.builder()
                 .subject(user.getId())
                 .claim("aud", AUDIENCE)
                 .claim("scope", Scopes.ALL)
-                .claim("roles", roleNames)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
                 .signWith(signingKey)
@@ -56,14 +51,9 @@ public class JwtService {
                 .getPayload();
 
         String userId = claims.getSubject();
-        List<?> roleNames = claims.get("roles", List.class);
-        Set<Role> roles = roleNames.stream()
-                .map(String.class::cast)
-                .map(Role::valueOf)
-                .collect(Collectors.toSet());
         String scopeClaim = claims.get("scope", String.class);
         Set<String> scopes = Set.of(scopeClaim.split(" "));
 
-        return new AuthenticatedUser(userId, roles, scopes);
+        return new AuthenticatedUser(userId, scopes);
     }
 }

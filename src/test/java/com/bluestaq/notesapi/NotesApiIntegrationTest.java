@@ -7,7 +7,6 @@ import com.bluestaq.notesapi.note.dto.NoteResponse;
 import com.bluestaq.notesapi.note.dto.NoteUpdateRequest;
 import com.bluestaq.notesapi.team.dto.TeamCreateRequest;
 import com.bluestaq.notesapi.team.dto.TeamResponse;
-import com.bluestaq.notesapi.user.Role;
 import com.bluestaq.notesapi.user.dto.UserRegistrationRequest;
 import com.bluestaq.notesapi.user.dto.UserResponse;
 import org.junit.jupiter.api.Test;
@@ -25,7 +24,6 @@ import org.springframework.http.ResponseEntity;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -70,7 +68,7 @@ class NotesApiIntegrationTest {
     }
 
     @Test
-    void register_withClientSuppliedRolesAndTeamId_ignoresThemAndPersistsPlainUser() {
+    void register_withClientSuppliedUnknownFields_ignoresThemAndPersistsPlainUser() {
         String email = uniqueEmail("mallory");
         Map<String, Object> maliciousRegistration = new LinkedHashMap<>();
         maliciousRegistration.put("name", "Mallory");
@@ -84,7 +82,6 @@ class NotesApiIntegrationTest {
 
         assertEquals(HttpStatus.CREATED, registerResponse.getStatusCode());
         UserResponse created = registerResponse.getBody();
-        assertEquals(Set.of(Role.USER), created.roles());
         assertTrue(created.teamIds().isEmpty());
 
         // Confirm the persisted record (not just the echoed response) matches, via a fresh login + fetch.
@@ -92,7 +89,6 @@ class NotesApiIntegrationTest {
         ResponseEntity<UserResponse> fetched = getWithAuth("/v1/users/" + created.id(), token, UserResponse.class);
 
         assertEquals(HttpStatus.OK, fetched.getStatusCode());
-        assertEquals(Set.of(Role.USER), fetched.getBody().roles());
         assertTrue(fetched.getBody().teamIds().isEmpty());
     }
 

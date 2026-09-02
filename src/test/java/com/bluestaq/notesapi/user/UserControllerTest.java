@@ -13,7 +13,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -44,7 +43,7 @@ class UserControllerTest {
 
     private UserResponse sampleResponse(String id) {
         return new UserResponse(id, "Ada Lovelace", "ada@example.com",
-                Set.of(Role.USER), Set.of(), Instant.parse("2026-01-01T00:00:00Z"));
+                Set.of(), Instant.parse("2026-01-01T00:00:00Z"));
     }
 
     @Test
@@ -76,15 +75,6 @@ class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void listAll_returnsListOfUsers() throws Exception {
-        when(userService.listAll()).thenReturn(List.of(sampleResponse("id-1"), sampleResponse("id-2")));
-
-        mockMvc.perform(get("/v1/users"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
     }
 
     @Test

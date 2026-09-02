@@ -37,9 +37,6 @@ public class TeamService {
     }
 
     public List<TeamResponse> listForRequester(AuthenticatedUser requester) {
-        if (requester.isAdmin()) {
-            return teamRepository.findAll().stream().map(TeamResponse::from).toList();
-        }
         User requesterUser = findUserOrThrow(requester.userId());
         return teamRepository.findAllById(requesterUser.getTeamIds()).stream().map(TeamResponse::from).toList();
     }

@@ -6,7 +6,6 @@ import com.bluestaq.notesapi.exception.ResourceNotFoundException;
 import com.bluestaq.notesapi.team.dto.TeamCreateRequest;
 import com.bluestaq.notesapi.team.dto.TeamResponse;
 import com.bluestaq.notesapi.team.dto.TeamUpdateRequest;
-import com.bluestaq.notesapi.user.Role;
 import com.bluestaq.notesapi.user.User;
 import com.bluestaq.notesapi.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,8 +50,8 @@ class TeamServiceTest {
         teamService = new TeamService(teamRepository, userRepository, teamAccessGuard);
     }
 
-    private AuthenticatedUser asRequester(String userId, boolean admin) {
-        return new AuthenticatedUser(userId, admin ? Set.of(Role.ADMIN) : Set.of(Role.USER), Set.of());
+    private AuthenticatedUser asRequester(String userId) {
+        return new AuthenticatedUser(userId, Set.of());
     }
 
     private User existingUser(String id, Set<String> teamIds) {
@@ -74,7 +73,7 @@ class TeamServiceTest {
 
     @Test
     void create_savesNewTeamAndAtomicallyAddsItToRequestersOwnTeamIds() {
-        AuthenticatedUser requester = asRequester("user-1", false);
+        AuthenticatedUser requester = asRequester("user-1");
         when(teamRepository.save(any(Team.class))).thenAnswer(invocation -> {
             Team toSave = invocation.getArgument(0);
             toSave.setId("team-1");
@@ -99,20 +98,8 @@ class TeamServiceTest {
     // ---- listForRequester ----
 
     @Test
-    void listForRequester_whenAdmin_returnsAllTeamsWithoutScopingToOwnMembership() {
-        AuthenticatedUser requester = asRequester("admin-1", true);
-        when(teamRepository.findAll()).thenReturn(List.of(existingTeam("team-1", "Engineering"), existingTeam("team-2", "Sales")));
-
-        List<TeamResponse> responses = teamService.listForRequester(requester);
-
-        assertEquals(2, responses.size());
-        verify(userRepository, never()).findById(any());
-        verify(teamRepository, never()).findAllById(any());
-    }
-
-    @Test
-    void listForRequester_whenNonAdmin_returnsOnlyRequestersOwnTeams() {
-        AuthenticatedUser requester = asRequester("user-1", false);
+    void listForRequester_returnsOnlyRequestersOwnTeams() {
+        AuthenticatedUser requester = asRequester("user-1");
         User requesterUser = existingUser("user-1", Set.of("team-1"));
         when(userRepository.findById("user-1")).thenReturn(Optional.of(requesterUser));
         when(teamRepository.findAllById(Set.of("team-1"))).thenReturn(List.of(existingTeam("team-1", "Engineering")));
@@ -128,7 +115,7 @@ class TeamServiceTest {
 
     @Test
     void getById_whenTeamExistsAndGuardPasses_returnsTeam() {
-        AuthenticatedUser requester = asRequester("user-1", false);
+        AuthenticatedUser requester = asRequester("user-1");
         when(teamRepository.findById("team-1")).thenReturn(Optional.of(existingTeam("team-1", "Engineering")));
         doNothing().when(teamAccessGuard).assertMember(requester, "team-1");
 
@@ -140,7 +127,7 @@ class TeamServiceTest {
 
     @Test
     void getById_whenTeamNotFound_throwsResourceNotFoundException() {
-        AuthenticatedUser requester = asRequester("user-1", false);
+        AuthenticatedUser requester = asRequester("user-1");
         when(teamRepository.findById("missing")).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> teamService.getById(requester, "missing"));
@@ -150,7 +137,7 @@ class TeamServiceTest {
 
     @Test
     void getById_whenGuardRejects_propagatesForbiddenOperationException() {
-        AuthenticatedUser requester = asRequester("user-1", false);
+        AuthenticatedUser requester = asRequester("user-1");
         when(teamRepository.findById("team-1")).thenReturn(Optional.of(existingTeam("team-1", "Engineering")));
         doThrow(new ForbiddenOperationException("not a member"))
                 .when(teamAccessGuard).assertMember(requester, "team-1");
@@ -162,7 +149,7 @@ class TeamServiceTest {
 
     @Test
     void update_whenTeamExistsAndGuardPasses_renamesAndSavesTeam() {
-        AuthenticatedUser requester = asRequester("user-1", false);
+        AuthenticatedUser requester = asRequester("user-1");
         Team team = existingTeam("team-1", "Old Name");
         when(teamRepository.findById("team-1")).thenReturn(Optional.of(team));
         doNothing().when(teamAccessGuard).assertMember(requester, "team-1");
@@ -176,7 +163,7 @@ class TeamServiceTest {
 
     @Test
     void update_whenTeamNotFound_throwsResourceNotFoundException() {
-        AuthenticatedUser requester = asRequester("user-1", false);
+        AuthenticatedUser requester = asRequester("user-1");
         when(teamRepository.findById("missing")).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class,
@@ -188,7 +175,7 @@ class TeamServiceTest {
 
     @Test
     void update_whenGuardRejects_propagatesForbiddenOperationExceptionWithoutSaving() {
-        AuthenticatedUser requester = asRequester("user-1", false);
+        AuthenticatedUser requester = asRequester("user-1");
         when(teamRepository.findById("team-1")).thenReturn(Optional.of(existingTeam("team-1", "Old Name")));
         doThrow(new ForbiddenOperationException("not a member"))
                 .when(teamAccessGuard).assertMember(requester, "team-1");

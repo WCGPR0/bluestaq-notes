@@ -20,7 +20,7 @@ Feature-complete for the initial spec: auth, users, teams, and notes are all imp
 
 ## Data model
 
-- **User**: `id, name, email, passwordHash, roles (USER|ADMIN), teamIds, createdAt`
+- **User**: `id, name, email, passwordHash, teamIds, createdAt`
 - **Team**: `id, name, createdAt`
 - **Note**: `id, title, body, teamId, authorId, archived, createdAt, updatedAt`
 
@@ -35,35 +35,33 @@ Users and teams are many-to-many: membership lives on `User.teamIds` (a set of t
   "sub": "<user id>",
   "aud": "notes-api",
   "scope": "profile:read profile:write teams:read teams:write notes:read notes:write",
-  "roles": ["user"],
   "exp": 1788361200
 }
 ```
 
 Every endpoint except login and public registration (`POST /v1/users`) requires `Authorization: Bearer <token>`.
 
-**Registration is deliberately narrow**: the public registration request body only accepts `name`, `email`, and `password` — there is no `roles` or `teamIds` field to submit, so a client cannot self-assign admin rights or team membership at signup. New users always start as `USER` with no team memberships. Only an authenticated `ADMIN` can change a user's `roles` or `teamIds`, via `PATCH /v1/users/{id}`. Creating a team (`POST /v1/teams`) automatically adds the creator as a member — the normal way a non-admin user ends up in a team.
+**Registration is deliberately narrow**: the public registration request body only accepts `name`, `email`, and `password` — a client cannot grant itself team membership at signup. New users always start with no team memberships, and `PATCH /v1/users/{id}` only edits the caller's own `name`/`email`/`password`. Team membership (`teamIds`) is not writable via the API at all — manage it directly in MongoDB. Creating a team (`POST /v1/teams`) automatically adds the creator as a member.
 
-Team- and note-scoped endpoints additionally check that the caller is a member of the relevant team (or an `ADMIN`), re-checked against the database on every request rather than trusted from the token, so membership changes take effect immediately.
+Team- and note-scoped endpoints check that the caller is a member of the relevant team, re-checked against the database on every request rather than trusted from the token, so membership changes take effect immediately.
 
 ## Endpoints
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | POST | `/v1/auth/login` | public | issues bearer token |
-| POST | `/v1/users` | public | registration; no roles/teamIds accepted |
-| GET | `/v1/users` | ADMIN | list |
-| GET | `/v1/users/{id}` | self or ADMIN | |
-| PATCH | `/v1/users/{id}` | self or ADMIN | roles/teamIds fields require ADMIN |
-| DELETE | `/v1/users/{id}` | self or ADMIN | |
+| POST | `/v1/users` | public | registration; no teamIds accepted |
+| GET | `/v1/users/{id}` | self | |
+| PATCH | `/v1/users/{id}` | self | name/email/password only; teamIds managed directly in MongoDB |
+| DELETE | `/v1/users/{id}` | self | |
 | POST | `/v1/teams` | authenticated | creator auto-joins |
-| GET | `/v1/teams` | authenticated | lists caller's teams (all teams if ADMIN) |
-| GET | `/v1/teams/{teamId}` | member or ADMIN | 403 if not a member |
-| PATCH | `/v1/teams/{teamId}` | member or ADMIN | rename |
-| GET | `/v1/teams/{teamId}/notes` | member or ADMIN | list team's notes |
+| GET | `/v1/teams` | authenticated | lists caller's teams |
+| GET | `/v1/teams/{teamId}` | member | 403 if not a member |
+| PATCH | `/v1/teams/{teamId}` | member | rename |
+| GET | `/v1/teams/{teamId}/notes` | member | list team's notes |
 | POST | `/v1/notes` | authenticated + member of body's `teamId` | create |
-| GET | `/v1/notes/{noteId}` | member of note's `teamId` or ADMIN | |
-| PATCH | `/v1/notes/{noteId}` | member of note's current `teamId` or ADMIN | title/body/archived/teamId (moving requires membership in both source and destination team); requires `If-Match` |
+| GET | `/v1/notes/{noteId}` | member of note's `teamId` | |
+| PATCH | `/v1/notes/{noteId}` | member of note's current `teamId` | title/body/archived/teamId (moving requires membership in both source and destination team); requires `If-Match` |
 
 ## Optimistic concurrency on notes
 

@@ -16,9 +16,6 @@ public class TeamAccessGuard {
     }
 
     public void assertMember(AuthenticatedUser requester, String teamId) {
-        if (requester.isAdmin()) {
-            return;
-        }
         User user = userRepository.findById(requester.userId())
                 .orElseThrow(() -> new ForbiddenOperationException("Not a member of team " + teamId));
         if (!user.getTeamIds().contains(teamId)) {

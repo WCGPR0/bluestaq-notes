@@ -14,7 +14,6 @@ public class User {
     private String name;
     private String email;
     private String passwordHash;
-    private Set<Role> roles;
     private Set<String> teamIds;
     private Instant createdAt;
 
@@ -48,14 +47,6 @@ public class User {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
-    }
-
-    public Set<Role> getRoles() {
-        return roles;
-    }
-
-    public void setRoles(Set<Role> roles) {
-        this.roles = roles;
     }
 
     public Set<String> getTeamIds() {
